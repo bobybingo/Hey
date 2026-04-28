@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spotify → Apple Music Importer</title>
+  <script src="https://js-cdn.music.apple.com/musickit/v3/musickit.js" data-web-components async></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0f0f0f;
+      color: #f0f0f0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    .card {
+      background: #1a1a1a;
+      border-radius: 16px;
+      padding: 2.5rem;
+      width: 100%;
+      max-width: 640px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+    }
+
+    h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      margin-bottom: 0.4rem;
+    }
+
+    .subtitle {
+      color: #888;
+      font-size: 0.9rem;
+      margin-bottom: 2rem;
+    }
+
+    /* Steps */
+    .step {
+      border: 1px solid #2a2a2a;
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .step-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .step-num {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: #2a2a2a;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.8rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .step-num.done { background: #1db954; color: #000; }
+    .step-num.active { background: #fc3c44; color: #fff; }
+
+    .step-title { font-weight: 600; font-size: 1rem; }
+    .step-desc { color: #888; font-size: 0.85rem; margin-left: 2.75rem; }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.6rem 1.25rem;
+      border-radius: 8px;
+      border: none;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: opacity 0.15s;
+      margin-top: 0.75rem;
+    }
+
+    .btn:hover { opacity: 0.85; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-spotify { background: #1db954; color: #000; }
+    .btn-apple  { background: #fc3c44; color: #fff; }
+    .btn-primary { background: #fff; color: #000; }
+
+    /* Playlist selector */
+    select {
+      width: 100%;
+      padding: 0.6rem 0.75rem;
+      border-radius: 8px;
+      border: 1px solid #333;
+      background: #111;
+      color: #f0f0f0;
+      font-size: 0.9rem;
+      margin-top: 0.75rem;
+      appearance: none;
+    }
+
+    /* Progress */
+    .progress-wrap { margin-top: 1rem; }
+    .progress-bar-bg {
+      background: #2a2a2a;
+      border-radius: 99px;
+      height: 8px;
+      overflow: hidden;
+      margin-bottom: 0.5rem;
+    }
+    .progress-bar {
+      height: 100%;
+      background: #1db954;
+      border-radius: 99px;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+    .progress-label { font-size: 0.8rem; color: #888; }
+
+    /* Result */
+    .result-box {
+      background: #111;
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      margin-top: 1rem;
+      font-size: 0.88rem;
+      line-height: 1.6;
+    }
+    .result-box .big { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.4rem; }
+    .result-box .stat { color: #1db954; }
+    .result-box .warn { color: #f90; }
+    .not-found-list {
+      max-height: 140px;
+      overflow-y: auto;
+      margin-top: 0.5rem;
+      padding: 0.5rem 0.75rem;
+      background: #1a1a1a;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      color: #aaa;
+    }
+
+    .error-msg {
+      color: #f55;
+      font-size: 0.88rem;
+      margin-top: 0.5rem;
+    }
+
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <h1>Spotify → Apple Music</h1>
+  <p class="subtitle">Import your Spotify playlists into Apple Music</p>
+
+  {% if error %}
+  <p class="error-msg">{{ error }}</p>
+  {% endif %}
+
+  <!-- Step 1: Spotify -->
+  <div class="step">
+    <div class="step-header">
+      <div class="step-num {% if spotify_authed %}done{% else %}active{% endif %}">
+        {% if spotify_authed %}✓{% else %}1{% endif %}
+      </div>
+      <span class="step-title">Connect Spotify</span>
+    </div>
+    {% if spotify_authed %}
+      <p class="step-desc">Connected to Spotify.</p>
+    {% else %}
+      <p class="step-desc">Log in with your Spotify account to access your playlists.</p>
+      <a class="btn btn-spotify" href="{{ spotify_auth_url }}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
+        Connect Spotify
+      </a>
+    {% endif %}
+  </div>
+
+  <!-- Step 2: Apple Music -->
+  <div class="step">
+    <div class="step-header">
+      <div class="step-num {% if apple_authed %}done{% elif spotify_authed %}active{% else %}{% endif %}">
+        {% if apple_authed %}✓{% else %}2{% endif %}
+      </div>
+      <span class="step-title">Connect Apple Music</span>
+    </div>
+    {% if apple_authed %}
+      <p class="step-desc">Connected to Apple Music.</p>
+    {% else %}
+      <p class="step-desc">Authorize access to your Apple Music library.</p>
+      <button class="btn btn-apple" id="apple-auth-btn" {% if not spotify_authed %}disabled{% endif %}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/></svg>
+        Connect Apple Music
+      </button>
+      <p class="error-msg hidden" id="apple-error"></p>
+    {% endif %}
+  </div>
+
+  <!-- Step 3: Import -->
+  <div class="step">
+    <div class="step-header">
+      <div class="step-num {% if apple_authed and spotify_authed %}active{% endif %}">3</div>
+      <span class="step-title">Import Playlist</span>
+    </div>
+    <p class="step-desc">Choose a Spotify playlist to import into Apple Music.</p>
+
+    <select id="playlist-select" {% if not spotify_authed or not apple_authed %}disabled{% endif %}>
+      <option value="">-- select a playlist --</option>
+    </select>
+
+    <button class="btn btn-primary" id="import-btn" disabled>Import</button>
+
+    <div class="progress-wrap hidden" id="progress-wrap">
+      <div class="progress-bar-bg"><div class="progress-bar" id="progress-bar"></div></div>
+      <p class="progress-label" id="progress-label">Preparing…</p>
+    </div>
+
+    <div class="result-box hidden" id="result-box"></div>
+  </div>
+</div>
+
+<script>
+const DEVELOPER_TOKEN = {{ developer_token | tojson }};
+const SPOTIFY_AUTHED  = {{ spotify_authed | tojson }};
+const APPLE_AUTHED    = {{ apple_authed | tojson }};
+
+// ------------------------------------------------------------------
+// Apple Music MusicKit authorization
+// ------------------------------------------------------------------
+document.addEventListener("musickitloaded", async () => {
+  try {
+    await MusicKit.configure({ developerToken: DEVELOPER_TOKEN, app: { name: "Spotify Importer", build: "1.0" } });
+  } catch (e) {
+    console.error("MusicKit configure error:", e);
+  }
+});
+
+document.getElementById("apple-auth-btn")?.addEventListener("click", async () => {
+  const btn = document.getElementById("apple-auth-btn");
+  const err = document.getElementById("apple-error");
+  btn.disabled = true;
+  btn.textContent = "Authorizing…";
+  try {
+    const music = MusicKit.getInstance();
+    const userToken = await music.authorize();
+    const res = await fetch("/apple/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userToken }),
+    });
+    if (!res.ok) throw new Error("Server rejected token");
+    window.location.reload();
+  } catch (e) {
+    err.textContent = "Apple Music authorization failed: " + e.message;
+    err.classList.remove("hidden");
+    btn.disabled = false;
+    btn.textContent = "Retry";
+  }
+});
+
+// ------------------------------------------------------------------
+// Load playlists once both services are connected
+// ------------------------------------------------------------------
+async function loadPlaylists() {
+  if (!SPOTIFY_AUTHED || !APPLE_AUTHED) return;
+  const sel = document.getElementById("playlist-select");
+  sel.innerHTML = '<option value="">Loading…</option>';
+  try {
+    const res = await fetch("/api/playlists");
+    const playlists = await res.json();
+    sel.innerHTML = '<option value="">-- select a playlist --</option>';
+    playlists.forEach(p => {
+      const opt = document.createElement("option");
+      opt.value = p.id;
+      opt.textContent = p.name + (p.owner ? ` (${p.owner})` : "");
+      sel.appendChild(opt);
+    });
+    sel.disabled = false;
+  } catch (e) {
+    sel.innerHTML = '<option value="">Failed to load playlists</option>';
+  }
+}
+
+document.getElementById("playlist-select")?.addEventListener("change", () => {
+  const sel = document.getElementById("playlist-select");
+  document.getElementById("import-btn").disabled = !sel.value;
+});
+
+// ------------------------------------------------------------------
+// Import
+// ------------------------------------------------------------------
+document.getElementById("import-btn")?.addEventListener("click", async () => {
+  const playlistId = document.getElementById("playlist-select").value;
+  if (!playlistId) return;
+
+  document.getElementById("import-btn").disabled = true;
+  document.getElementById("progress-wrap").classList.remove("hidden");
+  document.getElementById("result-box").classList.add("hidden");
+
+  const res = await fetch("/api/import", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ playlistId }),
+  });
+  if (!res.ok) {
+    const data = await res.json();
+    showError(data.error || "Import failed");
+    return;
+  }
+  pollStatus();
+});
+
+function pollStatus() {
+  const interval = setInterval(async () => {
+    const res = await fetch("/api/import/status");
+    const data = await res.json();
+
+    if (data.total > 0) {
+      const pct = Math.round((data.current / data.total) * 100);
+      document.getElementById("progress-bar").style.width = pct + "%";
+      document.getElementById("progress-label").textContent =
+        `${data.current} / ${data.total} — ${data.currentTrack}`;
+    }
+
+    if (!data.running) {
+      clearInterval(interval);
+      document.getElementById("progress-wrap").classList.add("hidden");
+      document.getElementById("import-btn").disabled = false;
+
+      if (data.error) {
+        showError(data.error);
+      } else if (data.result) {
+        showResult(data.result);
+      }
+    }
+  }, 800);
+}
+
+function showError(msg) {
+  const box = document.getElementById("result-box");
+  box.innerHTML = `<p style="color:#f55">Error: ${escHtml(msg)}</p>`;
+  box.classList.remove("hidden");
+}
+
+function showResult(r) {
+  const box = document.getElementById("result-box");
+  const nfHtml = r.notFound.length
+    ? `<p class="warn">${r.notFound.length} track(s) not found on Apple Music:</p>
+       <div class="not-found-list">${r.notFound.map(escHtml).join("<br>")}</div>`
+    : `<p class="stat">All tracks found!</p>`;
+  box.innerHTML = `
+    <p class="big">Import complete</p>
+    <p><span class="stat">${r.matched}</span> / ${r.total} tracks imported (${r.matchRate}% match rate)</p>
+    <p style="color:#888; font-size:0.82rem; margin-top:0.3rem">Playlist: <strong>${escHtml(r.playlistName)}</strong></p>
+    ${nfHtml}
+  `;
+  box.classList.remove("hidden");
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+// Load playlists on page load if already authed
+loadPlaylists();
+</script>
+</body>
+</html>
