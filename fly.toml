@@ -1,23 +1,27 @@
-# fly.toml — generated for Fly.io deployment
-# Replace "spotify-apple-importer" with your chosen app name (must be globally unique)
-app = "spotify-apple-importer"
-primary_region = "fra"
+# fly.toml app configuration file generated for hey-uxwa9q on 2026-04-28T13:49:35Z
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'hey-uxwa9q'
+primary_region = 'fra'
 
 [build]
 
 [http_service]
   internal_port = 8080
   force_https = true
-  auto_stop_machines = "stop"
+  auto_stop_machines = 'stop'
   auto_start_machines = true
   min_machines_running = 0
 
   [http_service.concurrency]
-    type = "connections"
+    type = 'connections'
     hard_limit = 25
     soft_limit = 20
 
 [[vm]]
-  memory = "256mb"
-  cpu_kind = "shared"
+  memory = '256mb'
+  cpu_kind = 'shared'
   cpus = 1
+  memory_mb = 256
