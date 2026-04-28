@@ -20,7 +20,8 @@ class Config:
     SPOTIFY_REDIRECT_URI: str = ""
     APPLE_TEAM_ID: str = ""
     APPLE_KEY_ID: str = ""
-    APPLE_PRIVATE_KEY_PATH: str = ""
+    # Inline key content (used in cloud deployments via fly secret)
+    APPLE_PRIVATE_KEY: str = ""
     PORT: int = 8080
 
     @classmethod
@@ -33,6 +34,24 @@ class Config:
         )
         cfg.APPLE_TEAM_ID = _require("APPLE_TEAM_ID")
         cfg.APPLE_KEY_ID = _require("APPLE_KEY_ID")
-        cfg.APPLE_PRIVATE_KEY_PATH = _require("APPLE_PRIVATE_KEY_PATH")
+        cfg.APPLE_PRIVATE_KEY = cls._load_apple_key()
         cfg.PORT = int(os.getenv("PORT", "8080"))
         return cfg
+
+    @staticmethod
+    def _load_apple_key() -> str:
+        # Prefer inline key content (set via `fly secret set APPLE_PRIVATE_KEY="$(cat AuthKey.p8)"`)
+        inline = os.getenv("APPLE_PRIVATE_KEY", "")
+        if inline:
+            # Fly.io secrets replace newlines with literal \n — restore them
+            return inline.replace("\\n", "\n")
+
+        # Fall back to file path for local development
+        path = os.getenv("APPLE_PRIVATE_KEY_PATH", "")
+        if not path:
+            raise EnvironmentError(
+                "Missing Apple Music key: set APPLE_PRIVATE_KEY (inline) "
+                "or APPLE_PRIVATE_KEY_PATH (file path)."
+            )
+        with open(path, "r") as f:
+            return f.read()

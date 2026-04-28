@@ -75,8 +75,78 @@ After import, a new playlist appears in your Apple Music library. Tracks not fou
 
 ---
 
+## Deploying to Fly.io (iPhone / always-on access)
+
+Fly.io's free tier is enough to run this app permanently so you can use it from any device.
+
+### 1. Install the Fly CLI
+
+```bash
+brew install flyctl       # macOS
+# or: https://fly.io/docs/hands-on/install-flyctl/
+```
+
+### 2. Sign up and log in
+
+```bash
+fly auth signup           # or: fly auth login
+```
+
+### 3. Pick an app name and update fly.toml
+
+Open `fly.toml` and change the `app` value to something unique (e.g. `yourname-spotify-importer`).
+
+### 4. Create the app
+
+```bash
+fly apps create yourname-spotify-importer
+```
+
+### 5. Set all secrets
+
+```bash
+fly secret set \
+  SPOTIFY_CLIENT_ID="your_id" \
+  SPOTIFY_CLIENT_SECRET="your_secret" \
+  SPOTIFY_REDIRECT_URI="https://yourname-spotify-importer.fly.dev/spotify/callback" \
+  APPLE_TEAM_ID="your_team_id" \
+  APPLE_KEY_ID="your_key_id" \
+  APPLE_PRIVATE_KEY="$(cat /path/to/AuthKey.p8)"
+```
+
+> The `$(cat AuthKey.p8)` command reads the key file and passes it inline — no file upload needed.
+
+### 6. Add the redirect URI to your Spotify app
+
+In the [Spotify Dashboard](https://developer.spotify.com/dashboard), add:
+```
+https://yourname-spotify-importer.fly.dev/spotify/callback
+```
+
+### 7. Deploy
+
+```bash
+fly deploy
+```
+
+Your app is now live at `https://yourname-spotify-importer.fly.dev` — open it on your iPhone.
+
+### Updating after code changes
+
+```bash
+fly deploy
+```
+
+### Viewing logs
+
+```bash
+fly logs
+```
+
+---
+
 ## Notes
 
 - Apple Music's API requires an active Apple Music subscription on the authorizing account
 - The importer targets the `us` storefront for catalog search; edit `APPLE_MUSIC_API` in `src/apple_music.py` to change the region
-- The Spotify token is cached locally in `.spotify_token_cache`; delete it to re-authenticate
+- The Spotify token is cached locally in `.spotify_token_cache` when running locally; delete it to re-authenticate

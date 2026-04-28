@@ -28,7 +28,7 @@ def main() -> None:
     apple = AppleMusicClient(
         team_id=cfg.APPLE_TEAM_ID,
         key_id=cfg.APPLE_KEY_ID,
-        private_key_path=cfg.APPLE_PRIVATE_KEY_PATH,
+        private_key=cfg.APPLE_PRIVATE_KEY,
     )
 
     server.init(cfg, spotify, apple)

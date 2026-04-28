@@ -16,20 +16,12 @@ class AppleTrack:
 
 
 class AppleMusicClient:
-    def __init__(self, team_id: str, key_id: str, private_key_path: str):
+    def __init__(self, team_id: str, key_id: str, private_key: str):
         self._team_id = team_id
         self._key_id = key_id
-        self._private_key = self._load_key(private_key_path)
+        self._private_key = private_key
         self._developer_token: Optional[str] = None
         self._user_token: Optional[str] = None
-
-    # ------------------------------------------------------------------
-    # Auth
-    # ------------------------------------------------------------------
-
-    def _load_key(self, path: str) -> str:
-        with open(path, "r") as f:
-            return f.read()
 
     def get_developer_token(self) -> str:
         if self._developer_token:
